@@ -105,22 +105,6 @@ def _result(outcome: str, reason: str, severity, advisory: bool = False) -> Dict
     }
 
 
-def _has_governed_question(text: str) -> bool:
-    """e11: the field-level rule that gates C2 -- a governed-output
-    sentence with terminal '?' (C2's other partial source, an incomplete
-    C2-local lexical scan, cannot occur in this total implementation)."""
-    tokens = tokenize(text)
-    for sent in sentences(tokens, text):
-        for tok in reversed(sent):
-            if tok.kind == "PUNCT" and tok.raw in T.sentence_terminators:
-                if tok.raw == "?":
-                    return True
-                break
-            if tok.kind != "PUNCT":
-                break
-    return False
-
-
 def _bytes_n(n: int) -> int:
     """bytes(n) = max(1, 2^(n-3)) (spec section 8)."""
     return max(1, 2 ** max(0, n - 3))
@@ -309,7 +293,7 @@ def evaluate(fixture: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
     # -- C2's own lexical inputs (independent of frame extraction) --
     out_tokens = tokenize(out_text)
-    c2_partial = _has_governed_question(out_text)
+    c2_partial = checks.has_governed_question(out_text)
     if len(sentences(out_tokens, out_text)) > T.ENV_MAX_SENTENCES:
         # the output sentence cap gates every output consumer, C2 included
         gate(CHECK_IDS, "envelope_exceeded")

@@ -17,12 +17,12 @@ from typing import Any
 
 # Spec section 1 / draft-5.3 header: sha256 of ALGORITHM-v4-tables-v1.json.
 TABLES_SHA256 = "0a18dd94bc811bb3166a4f8812e78f2b053a9f8f083b781a21fb0f8371f54ecc"
-# sha256 of the vendored ALGORITHM-v4-c1c5-reference.md (draft 5.6, adds
-# erratum e15 (spec sec 3.2): NESTED_ADJUNCT_v1 chained-preposition
-# abstention) -- the normative source this package implements; verified
+# sha256 of the vendored ALGORITHM-v4-c1c5-reference.md (draft 5.7, adds
+# erratum e16 (spec sec 3.2): QUANT_v1 left-to-right first-match selection)
+# -- the normative source this package implements; verified
 # at import so a silently swapped spec cannot masquerade as the
 # reviewed one.
-ALGORITHM_SHA256 = "979cf1368fb3cdc6e51b78eaa200a8bcef81e03bfcdc6e89a6c1667b30c16c58"
+ALGORITHM_SHA256 = "49c138595fde5ee517d00d6b41eb815cf1016213a0cb7978ef258560cf5a4c59"
 
 _SPEC_DIR = Path(__file__).parent / "spec"
 _TABLES_PATH = _SPEC_DIR / "ALGORITHM-v4-tables-v1.json"

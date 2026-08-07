@@ -181,26 +181,69 @@ def C1(ctx_frames: List[Frame], out_frames: List[Frame], ctx_partial: bool, out_
 # C2
 # --------------------------------------------------------------------------
 
-def C2(out_tokens, out_partial: bool):
-    """out_partial here is C2's OWN field-partial signal. Normative
-    basis: e11 (spec 6, C2 row 0, operator-ratified; FREEZE v18.6 3.2):
-    C2 field PARTIAL means C2's OWN normalization/tokenization/lexical
-    scan is incomplete, OR the governed output is interrogative
-    (sentence-terminal '?'). C2 does NOT inherit proposition-frame
-    extraction partiality -- its products are DEFINITIVE_v1/HEDGE_v1
-    token matches, not frames. evaluate.py computes the signal (in this
-    total implementation the lexical scan cannot be incomplete, so the
-    realizable source is the interrogative-output rule)."""
+def scan_c2_lexical(out_tokens, sink=None) -> dict:
+    """SAN-881 PASS 2B.1b: the SINGLE, SHARED implementation of C2's own
+    lexical scan -- definitive matching, NEG_v1 handling, window/segment
+    bounds, hedge-boundary clipping, hedge matching, and negated-hedge
+    handling. checks.C2 (below) and reference/calibration/validate_design
+    .py's Group-A nontable evidence (the seven c2_* surfaces:
+    c2_definitive_hit, c2_negated_definitive, c2_hedge_in_window,
+    c2_hedge_outside_window_or_absent, c2_negated_hedge,
+    c2_window_boundary; c2_interrogative is has_governed_question below,
+    not this scan) BOTH consume this SAME result -- there is no
+    independent calibration-side replica of any of this logic.
+
+    Runs over the WHOLE `out_tokens` stream, exactly as production
+    always has -- C2's own lexical scan is NOT scoped to SPLIT_v1
+    sentences (only has_governed_question below is sentence-scoped).
+
+    SAN-881 PASS 2B.1b-FIX A3: STREAMS -- `sink`, when supplied, is
+    called ONCE per EXAMINED definitive with that definitive's own fact
+    dict (the same shape the pre-fix implementation used to accumulate,
+    unconditionally, into a retained "exams" list):
+      {
+        "span": (lo, hi),            # the matched DEFINITIVE_V1 token-index span
+        "negated": bool,              # NEG_v1(out_tokens, span, seg_bounds)
+        # populated ONLY when negated is False -- production itself
+        # never computes a hedge window for a negated definitive:
+        "window": (w_lo, w_hi) | None,      # FINAL hedge-search window, after boundary clipping
+        "window_clipped_lo": bool,          # production actually shortened the raw W_HEDGE lower bound
+        "window_clipped_hi": bool,          # production actually shortened the raw W_HEDGE upper bound
+        "negated_hedges": [(lo, hi), ...],  # every negated HEDGE_V1 match production actually examined en route to rescue/exhaustion
+        "rescuing_hedge": (lo, hi) | None,  # the rescuing non-negated hedge span, if any was found
+        "unrescued": bool,                  # True iff no rescuing hedge was found for this definitive
+      }
+    checks.C2 (below) calls this with NO sink -- production's
+    single-loop scan is streaming: the fact-dict LITERAL is never
+    constructed at all on that path (gated behind `if sink is not
+    None`), so memory stays O(1) regardless of how many definitives a
+    field examines (pre-fix, a legal near-1MiB field with tens of
+    thousands of rescued definitives allocated one dict per definitive
+    -- a proportional-allocation memory regression; production's own
+    pre-2B.1b inline C2 loop, before this extraction, streamed
+    near-constant). Calibration (validate_design.py's Group A nontable
+    evidence) supplies a sink and captures exactly the bounded corpus
+    facts it needs into its OWN local list -- there is still only ONE
+    scanner implementation; the sink is the sole capture mechanism.
+
+    Returns a plain dict (never a new dataclass or class -- no new
+    architecture is introduced by this extraction): {"unrescued": bool}
+    -- True iff the scan stopped at an unrescued definitive.
+
+    STOPS scanning at the first unrescued (non-negated, hedge-less)
+    definitive -- exactly where production's own C2() short-circuits
+    with an immediate VIOLATION -- never continues past that point
+    merely to manufacture additional coverage evidence; every fact
+    already emitted to `sink` before the stop is faithfully preserved."""
     from reference.primitives import DEFINITIVE_V1, HEDGE_V1, HEDGE_WINDOW_BOUNDARIES
     from reference.extraction import NEG_v1, _segment_bounds
-
-    if out_partial:
-        return (NOT_EVALUATED, "extraction_partial", None)
 
     seg_bounds = _segment_bounds(out_tokens)
     n = len(out_tokens)
     max_def_len = max((len(k) for k in DEFINITIVE_V1), default=1)
     max_hedge_len = max((len(k) for k in HEDGE_V1), default=1)
+
+    unrescued = False
 
     for i in range(n):
         matched_def = None
@@ -213,21 +256,48 @@ def C2(out_tokens, out_partial: bool):
             continue
         d_lo, d_hi = matched_def
         if NEG_v1(out_tokens, matched_def, seg_bounds):
+            if sink is not None:
+                sink({
+                    "span": matched_def,
+                    "negated": True,
+                    "window": None,
+                    "window_clipped_lo": False,
+                    "window_clipped_hi": False,
+                    "negated_hedges": [],
+                    "rescuing_hedge": None,
+                    "unrescued": False,
+                })
             continue
 
         seg = next(((lo, hi) for lo, hi in seg_bounds if lo <= d_lo < hi), (0, n))
-        w_lo = max(seg[0], d_lo - T.W_HEDGE)
-        w_hi = min(seg[1], d_hi + T.W_HEDGE)
+        # SAN-881 PASS 2B.1b-FIX A2: the field-clamped RAW bounds are
+        # computed first (ignoring the segment entirely); the production
+        # segment is then applied on top. clipped_lo/clipped_hi start
+        # True whenever the segment ALONE already shortened the window
+        # relative to the raw bound (a comma/semicolon/colon/paren
+        # segment boundary within W_HEDGE tokens genuinely narrows the
+        # search -- must flag), and the because/since boundary-token
+        # search below ORs further shortening into the SAME flags.
+        raw_lo = max(0, d_lo - T.W_HEDGE)
+        raw_hi = min(n, d_hi + T.W_HEDGE)
+        w_lo = max(seg[0], raw_lo)
+        w_hi = min(seg[1], raw_hi)
+        clipped_lo = w_lo > raw_lo
+        clipped_hi = w_hi < raw_hi
         for b in range(d_lo - 1, w_lo - 1, -1):
             if out_tokens[b].fold in HEDGE_WINDOW_BOUNDARIES:
                 w_lo = b + 1
+                clipped_lo = True
                 break
         for b in range(d_hi, w_hi):
             if out_tokens[b].fold in HEDGE_WINDOW_BOUNDARIES:
                 w_hi = b
+                clipped_hi = True
                 break
 
         found_hedge = False
+        rescuing_hedge = None
+        negated_hedges: List[tuple] = []
         j = w_lo
         while j < w_hi:
             matched_h = None
@@ -239,12 +309,70 @@ def C2(out_tokens, out_partial: bool):
             if matched_h:
                 if not NEG_v1(out_tokens, matched_h, seg_bounds):
                     found_hedge = True
+                    rescuing_hedge = matched_h
                     break
+                negated_hedges.append(matched_h)
                 j = matched_h[1]
             else:
                 j += 1
+
+        if sink is not None:
+            sink({
+                "span": matched_def,
+                "negated": False,
+                "window": (w_lo, w_hi),
+                "window_clipped_lo": clipped_lo,
+                "window_clipped_hi": clipped_hi,
+                "negated_hedges": negated_hedges,
+                "rescuing_hedge": rescuing_hedge,
+                "unrescued": not found_hedge,
+            })
         if not found_hedge:
-            return (VIOLATION, "detection_complete", WARNING)
+            unrescued = True
+            break
+
+    return {"unrescued": unrescued}
+
+
+def has_governed_question(text: str) -> bool:
+    """e11: the field-level rule that gates C2 -- true when ANY production
+    SPLIT_v1 sentence of `text` is interrogative (sentence-terminal '?').
+    SAN-881 PASS 2B.1b: promoted from evaluate.py's prior LOCAL
+    _has_governed_question (formerly at evaluate.py:108) into this SHARED
+    helper -- evaluate.py's own Stage W1 gate and
+    reference/calibration/validate_design.py's Group-A nontable evidence
+    (nontable.c2_interrogative) both consume this SAME implementation;
+    there is no independent calibration-side replica. Behaviorally
+    identical to the prior local scan (which walked each SPLIT_v1
+    sentence's own trailing terminator by hand): `is_interrogative`
+    already implements the exact same per-sentence trailing-terminator
+    rule, so this is `any(...)` over the SAME production `sentences()`
+    split, never a re-derivation of the rule."""
+    from reference.primitives import is_interrogative, sentences, tokenize
+
+    tokens = tokenize(text)
+    return any(is_interrogative(sent) for sent in sentences(tokens, text))
+
+
+def C2(out_tokens, out_partial: bool):
+    """out_partial here is C2's OWN field-partial signal. Normative
+    basis: e11 (spec 6, C2 row 0, operator-ratified; FREEZE v18.6 3.2):
+    C2 field PARTIAL means C2's OWN normalization/tokenization/lexical
+    scan is incomplete, OR the governed output is interrogative
+    (sentence-terminal '?'). C2 does NOT inherit proposition-frame
+    extraction partiality -- its products are DEFINITIVE_v1/HEDGE_v1
+    token matches, not frames. evaluate.py computes the signal (in this
+    total implementation the lexical scan cannot be incomplete, so the
+    realizable source is the interrogative-output rule, via
+    has_governed_question above). SAN-881 PASS 2B.1b: the lexical scan
+    itself is now scan_c2_lexical above -- this function only interprets
+    that shared result, never reimplements the scan."""
+    if out_partial:
+        return (NOT_EVALUATED, "extraction_partial", None)
+
+    scan = scan_c2_lexical(out_tokens)
+    if scan["unrescued"]:
+        return (VIOLATION, "detection_complete", WARNING)
 
     return (PASS, "detection_complete", None)
 

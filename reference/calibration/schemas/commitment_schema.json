@@ -1,69 +1,132 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sanna.dev/schemas/calibration/commitment/v1.json",
+  "$id": "https://sanna.dev/schemas/calibration/commitment/v2.json",
   "title": "SAN-881 calibration commit/reveal envelope",
-  "description": "Public commitment envelope binding the labeling_context_hash and per-artifact commitments for the four sealed author artifacts, plus pinned filenames/method for the two reviewer commitment files produced later in the staged-adjudication workflow.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "corpus_version",
-    "labeling_context_hash",
-    "labeling_context_components",
-    "commitment_algorithm",
-    "author_commitments",
-    "reveal_protocol"
+  "description": "Discriminated commit/reveal envelope. The AUTHOR envelope (reference/calibration/commitment.json) binds labeling_context_hash and the four author-artifact commitments. The REVIEWER_SEMANTIC and REVIEWER_CONTRACT envelopes are separate, single-artifact files produced later in the staged-adjudication workflow (filenames pinned below), committed under the SAME labeling_context_hash.",
+  "oneOf": [
+    { "$ref": "#/$defs/authorEnvelope" },
+    { "$ref": "#/$defs/reviewerSemanticEnvelope" },
+    { "$ref": "#/$defs/reviewerContractEnvelope" }
   ],
-  "properties": {
-    "corpus_version": { "const": 1 },
-    "labeling_context_hash": { "$ref": "#/$defs/hex64" },
-    "labeling_context_components": {
-      "description": "Ordered list of the exact byte sources concatenated (in this order) to produce labeling_context_hash.",
-      "type": "array",
-      "minItems": 1,
-      "items": { "type": "string", "minLength": 1 }
+  "$defs": {
+    "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "authorEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_version",
+        "envelope_kind",
+        "labeling_context_hash",
+        "labeling_context_components",
+        "commitment_algorithm",
+        "author_commitments",
+        "reveal_protocol"
+      ],
+      "properties": {
+        "corpus_version": { "const": 2 },
+        "envelope_kind": { "const": "AUTHOR" },
+        "labeling_context_hash": { "$ref": "#/$defs/hex64" },
+        "labeling_context_components": {
+          "description": "v2 formula (SAN-881 Phase-A correction item 3, an intentional break from v1): EXACTLY eleven structured {name, sha256} entries, in this exact pinned index order (base_commit_sha, corpus_inputs.json, evaluation_profile.json, the six schema files, algorithm, tables). Descriptive metadata only -- every verifier recomputes every digest from disk via fixed paths/constants (validate_design.compute_labeling_context_hash_from_disk) and NEVER trusts this list as an input.",
+          "type": "array",
+          "minItems": 11,
+          "maxItems": 11,
+          "items": false,
+          "prefixItems": [
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "base_commit_sha" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "corpus_inputs.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "evaluation_profile.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "schemas/commitment_schema.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "schemas/coverage_manifest_schema.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "schemas/design_metadata_schema.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "schemas/freeze_manifest_schema.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "schemas/labels_schema.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "schemas/reveal_verification_ledger_schema.json" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "algorithm" } } },
+            { "$ref": "#/$defs/contextComponent", "properties": { "name": { "const": "tables" } } }
+          ]
+        },
+        "commitment_algorithm": { "$ref": "#/$defs/commitmentAlgorithm" },
+        "author_commitments": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": false,
+          "prefixItems": [
+            { "allOf": [{ "$ref": "#/$defs/artifactCommitment" }, { "properties": { "artifact_name": { "const": "design_metadata.json" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/artifactCommitment" }, { "properties": { "artifact_name": { "const": "labels_author_semantic.json" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/artifactCommitment" }, { "properties": { "artifact_name": { "const": "labels_author_contract.json" } } }] },
+            { "allOf": [{ "$ref": "#/$defs/artifactCommitment" }, { "properties": { "artifact_name": { "const": "coverage_manifest.json" } } }] }
+          ]
+        },
+        "reveal_protocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviewer_commitment_filenames", "reviewer_commitment_method", "abandonment_rule"],
+          "properties": {
+            "reviewer_commitment_filenames": {
+              "type": "array",
+              "items": { "type": "string" },
+              "const": [
+                "labels_reviewer_semantic.commitment.json",
+                "labels_reviewer_contract.commitment.json"
+              ]
+            },
+            "reviewer_commitment_method": {
+              "type": "string",
+              "const": "identical to author_commitments: domain-separated SHA256(\"sanna-calibration-commitment/1\" || NUL || artifact_name || NUL || raw_32_byte_nonce || raw_32_byte_labeling_context_hash || exact_artifact_bytes)"
+            },
+            "abandonment_rule": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
     },
-    "commitment_algorithm": {
+    "reviewerSemanticEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corpus_version", "envelope_kind", "labeling_context_hash", "commitment_algorithm", "artifact_commitment"],
+      "properties": {
+        "corpus_version": { "const": 2 },
+        "envelope_kind": { "const": "REVIEWER_SEMANTIC" },
+        "labeling_context_hash": { "$ref": "#/$defs/hex64" },
+        "commitment_algorithm": { "$ref": "#/$defs/commitmentAlgorithm" },
+        "artifact_commitment": {
+          "allOf": [
+            { "$ref": "#/$defs/artifactCommitment" },
+            { "properties": { "artifact_name": { "const": "labels_reviewer_semantic.json" } } }
+          ]
+        }
+      }
+    },
+    "reviewerContractEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corpus_version", "envelope_kind", "labeling_context_hash", "commitment_algorithm", "artifact_commitment"],
+      "properties": {
+        "corpus_version": { "const": 2 },
+        "envelope_kind": { "const": "REVIEWER_CONTRACT" },
+        "labeling_context_hash": { "$ref": "#/$defs/hex64" },
+        "commitment_algorithm": { "$ref": "#/$defs/commitmentAlgorithm" },
+        "artifact_commitment": {
+          "allOf": [
+            { "$ref": "#/$defs/artifactCommitment" },
+            { "properties": { "artifact_name": { "const": "labels_reviewer_contract.json" } } }
+          ]
+        }
+      }
+    },
+    "commitmentAlgorithm": {
       "type": "object",
       "additionalProperties": false,
       "required": ["hash", "domain_separator", "formula"],
       "properties": {
         "hash": { "const": "SHA256" },
         "domain_separator": { "const": "sanna-calibration-commitment/1" },
-        "formula": { "type": "string", "minLength": 1 }
-      }
-    },
-    "author_commitments": {
-      "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
-      "items": { "$ref": "#/$defs/artifactCommitment" }
-    },
-    "reveal_protocol": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reviewer_commitment_filenames", "reviewer_commitment_method", "abandonment_rule"],
-      "properties": {
-        "reviewer_commitment_filenames": {
-          "type": "array",
-          "items": { "type": "string" },
-          "const": [
-            "labels_reviewer_semantic.commitment.json",
-            "labels_reviewer_contract.commitment.json"
-          ]
-        },
-        "reviewer_commitment_method": {
-          "type": "string",
-          "const": "identical to author_commitments: domain-separated SHA256(\"sanna-calibration-commitment/1\" || NUL || artifact_name || NUL || raw_32_byte_nonce || raw_32_byte_labeling_context_hash || exact_artifact_bytes)"
-        },
-        "abandonment_rule": {
-          "type": "string",
-          "const": "any byte change to the corpus or any sealed artifact after this commitment.json is finalized abandons v1; restart as v2. No in-place correction once blind labeling begins."
+        "formula": {
+          "const": "SHA256(domain_separator || NUL || artifact_name || NUL || raw_32_byte_nonce || raw_32_byte_labeling_context_hash || exact_artifact_bytes)"
         }
       }
-    }
-  },
-  "$defs": {
-    "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    },
     "artifactCommitment": {
       "type": "object",
       "additionalProperties": false,
@@ -74,11 +137,23 @@
             "design_metadata.json",
             "labels_author_semantic.json",
             "labels_author_contract.json",
-            "coverage_manifest.json"
+            "coverage_manifest.json",
+            "labels_reviewer_semantic.json",
+            "labels_reviewer_contract.json"
           ]
         },
         "byte_length": { "type": "integer", "exclusiveMinimum": 0 },
         "commitment_hex": { "$ref": "#/$defs/hex64" }
+      }
+    },
+    "contextComponent": {
+      "description": "One entry of the v2 labeling_context_components list (SAN-881 Phase-A correction item 3): a component name paired with the SHA-256 of its exact source bytes. Closed shape -- no arbitrary strings, no globs.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/hex64" }
       }
     }
   }

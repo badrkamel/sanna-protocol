@@ -1,5 +1,6 @@
 {
   "corpus_version": 1,
+  "envelope_kind": "AUTHOR",
   "labeling_context_hash": "394f4455ec0cff4fe98bec4e0c4f435f48bba1e79c5dd92ba0c09d09b9af8114",
   "labeling_context_components": [
     "base_commit_sha (ascii)",
@@ -10,6 +11,7 @@
     "schemas/design_metadata_schema.json sha256 (raw)",
     "schemas/freeze_manifest_schema.json sha256 (raw)",
     "schemas/labels_schema.json sha256 (raw)",
+    "schemas/reveal_verification_ledger_schema.json sha256 (raw)",
     "algorithm sha256 (raw)",
     "tables sha256 (raw)"
   ],

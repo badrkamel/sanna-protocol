@@ -1,23 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sanna.dev/schemas/calibration/labels/v1.json",
-  "title": "SAN-881 calibration corpus labels (semantic-only, contract-only, and merged-frozen record forms)",
-  "description": "Three record shapes. Semantic-only is the sealed human-reading layer (cognitively separated: ONLY the four allowed fields, no algorithm-relative reasoning). Contract-only is the sealed spec-derived layer. Merged/frozen is the Phase-B post-adjudication shape (labels_frozen.json), included here for forward reference; not produced in Phase A.",
+  "$id": "https://sanna.dev/schemas/calibration/labels/v2.json",
+  "title": "SAN-881 calibration corpus labels (whole-file forms: author-semantic, author-contract, merged-frozen)",
+  "description": "Validates ACTUAL WHOLE label files, not a single record: labels_author_semantic.json is an array of semanticRecord (the sealed human-reading layer -- cognitively separated: ONLY the four allowed fields, no algorithm-relative reasoning); labels_author_contract.json is an array of contractRecord (the sealed spec-derived layer); labels_frozen.json (Phase-B forward reference; not produced in Phase A) is an array of mergedFrozenRecord.",
   "oneOf": [
-    { "$ref": "#/$defs/semanticRecord" },
-    { "$ref": "#/$defs/contractRecord" },
-    { "$ref": "#/$defs/mergedFrozenRecord" }
+    { "$ref": "#/$defs/semanticFile" },
+    { "$ref": "#/$defs/contractFile" },
+    { "$ref": "#/$defs/mergedFrozenFile" }
   ],
   "$defs": {
     "itemId": { "type": "string", "pattern": "^cal:[0-9]{3}$" },
     "checkId": { "enum": ["C1", "C2", "C3", "C4"] },
     "semanticTruth": { "enum": ["NO_VIOLATION", "VIOLATION", "INDETERMINATE"] },
-    "outcome": { "enum": ["PASS", "VIOLATION", "NOT_EVALUATED"] },
+    "outcome": { "enum": ["PASS", "VIOLATION", "NOT_EVALUATED", "EVALUATOR_ERROR", "CONFIG_ERROR"] },
     "outcomeReason": {
+      "description": "Full locked reason matrix (SAN-881 Phase-A correction), union of every outcome's allowed reason set. contractTuple's allOf below additionally pins EACH outcome to its OWN subset -- this enum alone only closes the vocabulary, it does not enforce the pairing.",
       "enum": [
-        "detection_complete", "extraction_partial", "basis_conflict",
-        "identity_ambiguous", "unsupported_claim_form", "condition_undecidable",
-        "input_empty", "envelope_exceeded", "basis_empty"
+        "detection_complete",
+        "advisory_only", "manual_required", "input_empty", "context_disabled",
+        "attestation_missing", "attestation_invalid", "applicability_mismatch",
+        "envelope_exceeded", "scan_incomplete", "basis_incomplete",
+        "basis_unclassified", "basis_empty", "basis_conflict",
+        "identity_ambiguous", "condition_undecidable", "unsupported_claim_form",
+        "extraction_partial",
+        "evaluator_exception", "dependency_unavailable",
+        "malformed_structured_input", "dynamic_config_rejected", "runtime_binding_missing"
       ]
     },
     "severity": { "enum": ["critical", "warning", null] },
@@ -38,6 +45,39 @@
           "if": { "properties": { "outcome": { "const": "VIOLATION" } } },
           "then": { "properties": { "severity": { "enum": ["critical", "warning"] } } },
           "else": { "properties": { "severity": { "const": null } } }
+        },
+        {
+          "description": "PASS and VIOLATION share the same single reason: the evaluator reached a decided verdict.",
+          "if": { "properties": { "outcome": { "enum": ["PASS", "VIOLATION"] } } },
+          "then": { "properties": { "outcome_reason": { "const": "detection_complete" } } }
+        },
+        {
+          "description": "NOT_EVALUATED: every abstention/no-attempt reason class.",
+          "if": { "properties": { "outcome": { "const": "NOT_EVALUATED" } } },
+          "then": {
+            "properties": {
+              "outcome_reason": {
+                "enum": [
+                  "advisory_only", "manual_required", "input_empty", "context_disabled",
+                  "attestation_missing", "attestation_invalid", "applicability_mismatch",
+                  "envelope_exceeded", "scan_incomplete", "basis_incomplete",
+                  "basis_unclassified", "basis_empty", "basis_conflict",
+                  "identity_ambiguous", "condition_undecidable", "unsupported_claim_form",
+                  "extraction_partial"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "EVALUATOR_ERROR: a runtime crash.",
+          "if": { "properties": { "outcome": { "const": "EVALUATOR_ERROR" } } },
+          "then": { "properties": { "outcome_reason": { "enum": ["evaluator_exception", "dependency_unavailable"] } } }
+        },
+        {
+          "description": "CONFIG_ERROR: a bad invocation/configuration.",
+          "if": { "properties": { "outcome": { "const": "CONFIG_ERROR" } } },
+          "then": { "properties": { "outcome_reason": { "enum": ["malformed_structured_input", "dynamic_config_rejected", "runtime_binding_missing"] } } }
         }
       ]
     },
@@ -82,6 +122,27 @@
         "contract_rationale": { "type": "string", "minLength": 1 },
         "spec_refs": { "type": "string", "minLength": 1 }
       }
+    },
+    "semanticFile": {
+      "description": "SAN-881 Phase-A correction: exactly 640 records (160 corpus items x C1-C4), independently of contractFile/mergedFrozenFile.",
+      "type": "array",
+      "minItems": 640,
+      "maxItems": 640,
+      "items": { "$ref": "#/$defs/semanticRecord" }
+    },
+    "contractFile": {
+      "description": "SAN-881 Phase-A correction: exactly 640 records (160 corpus items x C1-C4), independently of semanticFile/mergedFrozenFile.",
+      "type": "array",
+      "minItems": 640,
+      "maxItems": 640,
+      "items": { "$ref": "#/$defs/contractRecord" }
+    },
+    "mergedFrozenFile": {
+      "description": "SAN-881 Phase-A correction: exactly 640 records (160 corpus items x C1-C4), independently of semanticFile/contractFile.",
+      "type": "array",
+      "minItems": 640,
+      "maxItems": 640,
+      "items": { "$ref": "#/$defs/mergedFrozenRecord" }
     }
   }
 }

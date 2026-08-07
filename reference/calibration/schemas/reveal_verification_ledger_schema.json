@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanna.dev/schemas/calibration/reveal_verification_ledger/v2.json",
+  "title": "SAN-881 calibration reveal-verification ledger",
+  "description": "Canonical record of which sealed envelopes were revealed and verified, at which stage of the staged-adjudication workflow. Filename: reveal_verification_ledger.json. Bound into FREEZE-MANIFEST.json by reveal_verification_ledger_sha256. Canonical encoding: sorted keys, compact separators, ensure_ascii, single trailing LF. Entry ORDER is PINNED index-by-index (SAN-881 Phase-A correction item 2) to the literal canonical sequence below via prefixItems -- the ledger builder EMITS this order directly, it does not sort by (envelope, artifact_name); reversal or any other permutation fails this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["corpus_version", "labeling_context_hash", "entries"],
+  "properties": {
+    "corpus_version": { "const": 2 },
+    "labeling_context_hash": { "$ref": "#/$defs/hex64" },
+    "entries": {
+      "description": "EXACTLY six entries, in this EXACT pinned order (SAN-881 Phase-A correction): (1) labels_author_semantic.json/author/semantic, (2) labels_reviewer_semantic.json/reviewer_semantic/semantic, (3) labels_author_contract.json/author/contract, (4) design_metadata.json/author/contract, (5) coverage_manifest.json/author/contract, (6) labels_reviewer_contract.json/reviewer_contract/contract. The literal (artifact_name, envelope, verified_stage) tuple set AND order are additionally pinned and cross-checked by validate_design.check_reveal_verification_ledger / validate_design.LEDGER_CANONICAL_ORDER.",
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": false,
+      "prefixItems": [
+        { "$ref": "#/$defs/entry", "properties": { "artifact_name": { "const": "labels_author_semantic.json" }, "envelope": { "const": "author" }, "verified_stage": { "const": "semantic" } } },
+        { "$ref": "#/$defs/entry", "properties": { "artifact_name": { "const": "labels_reviewer_semantic.json" }, "envelope": { "const": "reviewer_semantic" }, "verified_stage": { "const": "semantic" } } },
+        { "$ref": "#/$defs/entry", "properties": { "artifact_name": { "const": "labels_author_contract.json" }, "envelope": { "const": "author" }, "verified_stage": { "const": "contract" } } },
+        { "$ref": "#/$defs/entry", "properties": { "artifact_name": { "const": "design_metadata.json" }, "envelope": { "const": "author" }, "verified_stage": { "const": "contract" } } },
+        { "$ref": "#/$defs/entry", "properties": { "artifact_name": { "const": "coverage_manifest.json" }, "envelope": { "const": "author" }, "verified_stage": { "const": "contract" } } },
+        { "$ref": "#/$defs/entry", "properties": { "artifact_name": { "const": "labels_reviewer_contract.json" }, "envelope": { "const": "reviewer_contract" }, "verified_stage": { "const": "contract" } } }
+      ]
+    }
+  },
+  "$defs": {
+    "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_name", "envelope", "commitment_hex", "verified", "verified_stage", "byte_length"],
+      "properties": {
+        "artifact_name": { "type": "string", "minLength": 1 },
+        "envelope": { "enum": ["author", "reviewer_semantic", "reviewer_contract"] },
+        "commitment_hex": { "$ref": "#/$defs/hex64" },
+        "verified": { "const": true },
+        "verified_stage": { "enum": ["semantic", "contract"] },
+        "byte_length": { "type": "integer", "exclusiveMinimum": 0 }
+      }
+    }
+  }
+}

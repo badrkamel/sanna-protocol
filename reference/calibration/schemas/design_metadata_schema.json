@@ -1,16 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sanna.dev/schemas/calibration/design_metadata/v1.json",
+  "$id": "https://sanna.dev/schemas/calibration/design_metadata/v2.json",
   "title": "SAN-881 calibration corpus design metadata",
-  "description": "Sealed authoring artifact: per-item design rationale (target check/stratum, domain, facet families, scenario grouping, minimal-pair pointers, introduced_feature). NEVER derived by running the evaluator.",
+  "description": "Sealed authoring artifact: per-item design rationale (target check/stratum, domain, facet families, scenario grouping, minimal-pair pointers, introduced_feature). NEVER derived by running the evaluator. table_path is a CLOSED enum of the exact pinned table locations; intended_semantics is a closed, per-kind discriminated shape (no open-ended objects). SAN-881 PASS 2B.2: introduced_feature is a TEN-branch closed discriminated union (comparator REMOVED from the vocabulary -- comparator parsing/coverage/measurement are untouched product features, but comparators_v1 is no longer a legal introduced_feature TARGET table) with explicit kind-to-table BINDING: every kind is pinned to its own single table_path (facet_trigger additionally to facetproj_v1; deny_trigger NEVER to facetproj_v1), and facet_trigger/deny_trigger are additionally bound, per declared facet, to the MATCHING facets_v1 leaf with the MATCHING polarity; definitive/hedge are additionally bound to a role matching their own kind name.",
   "type": "object",
-  "required": ["items"],
+  "required": [
+    "items"
+  ],
   "additionalProperties": false,
   "properties": {
     "items": {
+      "description": "SAN-881 Phase-A correction: exactly 160 items (schema-level, not merely validator-level).",
       "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/item" }
+      "minItems": 160,
+      "maxItems": 160,
+      "items": {
+        "$ref": "#/$defs/item"
+      }
     }
   },
   "$defs": {
@@ -18,12 +24,28 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "item_id", "target_check_id", "target_stratum", "domain",
-        "facet_families", "scenario_id", "minimal_pair_of", "introduced_feature"
+        "item_id",
+        "target_check_id",
+        "target_stratum",
+        "domain",
+        "facet_families",
+        "scenario_id",
+        "minimal_pair_of",
+        "introduced_feature"
       ],
       "properties": {
-        "item_id": { "type": "string", "pattern": "^cal:[0-9]{3}$" },
-        "target_check_id": { "enum": ["C1", "C2", "C3", "C4"] },
+        "item_id": {
+          "type": "string",
+          "pattern": "^cal:[0-9]{3}$"
+        },
+        "target_check_id": {
+          "enum": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        },
         "target_stratum": {
           "enum": [
             "in_domain_nonviolation",
@@ -32,66 +54,1408 @@
             "indeterminate_or_unsafe"
           ]
         },
-        "domain": { "type": "string", "minLength": 1 },
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
         "facet_families": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "pattern": "^facet:[a-z_]+$" }
+          "items": {
+            "type": "string",
+            "pattern": "^facet:[a-z_]+$"
+          }
         },
-        "scenario_id": { "type": "string", "minLength": 1 },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
         "minimal_pair_of": {
           "description": "One-way pointer to a unique in-domain control item (cal:NNN). Non-null only for determinate_out_of_domain items; null everywhere else.",
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^cal:[0-9]{3}$"
         },
         "introduced_feature": {
           "description": "Non-null only for determinate_out_of_domain items; null everywhere else. Closed discriminated union: lexical-surface features or pair-relation features.",
           "oneOf": [
-            { "type": "null" },
-            { "$ref": "#/$defs/lexicalSurfaceFeature" },
-            { "$ref": "#/$defs/pairRelationFeature" }
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/lexicalSurfaceFeature"
+            },
+            {
+              "$ref": "#/$defs/pairRelationFeature"
+            }
           ]
         }
       }
     },
+    "closedTablePath": {
+      "description": "Every facet also has a .triggers and .deny_triggers leaf path (facet_trigger / deny_trigger features point at the specific leaf they draw from); facetproj_v1 is the FACETPROJ cross-facet projection table used by some facet_trigger features instead of a facets_v1 leaf. SAN-881 PASS 2B.2: comparators_v1 REMOVED -- comparator is no longer a legal introduced_feature kind, so its table is no longer a legal introduced_feature table_path target (comparator parsing/coverage/measurement elsewhere are untouched).",
+      "enum": [
+        "facets_v1.facet:availability.triggers",
+        "facets_v1.facet:availability.deny_triggers",
+        "facets_v1.facet:refund_availability.triggers",
+        "facets_v1.facet:refund_availability.deny_triggers",
+        "facets_v1.facet:exchange_availability.triggers",
+        "facets_v1.facet:exchange_availability.deny_triggers",
+        "facets_v1.facet:discount_availability.triggers",
+        "facets_v1.facet:discount_availability.deny_triggers",
+        "facets_v1.facet:access_permission.triggers",
+        "facets_v1.facet:access_permission.deny_triggers",
+        "facets_v1.facet:approval_requirement.triggers",
+        "facets_v1.facet:approval_requirement.deny_triggers",
+        "facets_v1.facet:eligibility.triggers",
+        "facets_v1.facet:eligibility.deny_triggers",
+        "facets_v1.facet:cost.triggers",
+        "facets_v1.facet:cost.deny_triggers",
+        "facets_v1.facet:duration.triggers",
+        "facets_v1.facet:duration.deny_triggers",
+        "facets_v1.facet:limit.triggers",
+        "facets_v1.facet:limit.deny_triggers",
+        "facetproj_v1",
+        "concept_v1",
+        "units_v1",
+        "condition_operators_v1",
+        "quant_v1",
+        "definitive_v1",
+        "hedge_v1",
+        "excl_v1",
+        "complement_v1"
+      ]
+    },
     "lexicalSurfaceFeature": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "table_path", "surface_tokens", "intended_semantics"],
+      "required": [
+        "kind",
+        "table_path",
+        "surface_tokens",
+        "intended_semantics"
+      ],
       "properties": {
         "kind": {
           "enum": [
-            "facet_trigger", "deny_trigger", "concept", "comparator",
-            "unit", "condition_operator", "quantifier", "definitive", "hedge"
+            "facet_trigger",
+            "deny_trigger",
+            "concept",
+            "unit",
+            "condition_operator",
+            "quantifier",
+            "definitive",
+            "hedge"
           ]
         },
-        "table_path": { "type": "string", "minLength": 1 },
+        "table_path": {
+          "$ref": "#/$defs/closedTablePath"
+        },
         "surface_tokens": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
         },
-        "intended_semantics": { "type": "object" }
+        "intended_semantics": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "table_path": {
+                "const": "facetproj_v1"
+              }
+            },
+            "required": [
+              "kind",
+              "table_path"
+            ]
+          },
+          "then": {
+            "properties": {
+              "intended_semantics": {
+                "$ref": "#/$defs/facetprojSemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "table_path": {
+                "const": "facetproj_v1"
+              }
+            },
+            "required": [
+              "kind",
+              "table_path"
+            ]
+          },
+          "then": false
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "facet_trigger",
+                  "deny_trigger"
+                ]
+              }
+            },
+            "not": {
+              "properties": {
+                "table_path": {
+                  "const": "facetproj_v1"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "intended_semantics": {
+                "$ref": "#/$defs/facetPolaritySemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:availability.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:availability.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:refund_availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:refund_availability.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:refund_availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:refund_availability.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:exchange_availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:exchange_availability.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:exchange_availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:exchange_availability.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:discount_availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:discount_availability.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:discount_availability"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:discount_availability.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:access_permission"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:access_permission.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:access_permission"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:access_permission.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:approval_requirement"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:approval_requirement.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:approval_requirement"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:approval_requirement.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:eligibility"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:eligibility.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:eligibility"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:eligibility.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:cost"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:cost.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:cost"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:cost.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:duration"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:duration.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:duration"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:duration.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "facet_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:limit"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:limit.triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "POS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "deny_trigger"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "facet"
+                ],
+                "properties": {
+                  "facet": {
+                    "const": "facet:limit"
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "intended_semantics"
+            ]
+          },
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "facets_v1.facet:limit.deny_triggers"
+              },
+              "intended_semantics": {
+                "type": "object",
+                "required": [
+                  "polarity"
+                ],
+                "properties": {
+                  "polarity": {
+                    "const": "NEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "condition_operator"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "condition_operators_v1"
+              },
+              "intended_semantics": {
+                "$ref": "#/$defs/conditionOperatorSemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "unit"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "units_v1"
+              },
+              "intended_semantics": {
+                "$ref": "#/$defs/unitSemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "concept"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "concept_v1"
+              },
+              "intended_semantics": {
+                "$ref": "#/$defs/conceptSemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "quantifier"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "quant_v1"
+              },
+              "intended_semantics": {
+                "$ref": "#/$defs/quantifierSemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "definitive"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "definitive_v1"
+              },
+              "intended_semantics": {
+                "$ref": "#/$defs/definitiveSemantics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "hedge"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "hedge_v1"
+              },
+              "intended_semantics": {
+                "$ref": "#/$defs/hedgeSemantics"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "facetPolaritySemantics": {
+      "description": "facet_trigger / deny_trigger drawn from a facets_v1 leaf's triggers/deny_triggers list. facet is CLOSED to the ten pinned facet_families (SAN-881 PASS 2B.2 -- previously an open ^facet:[a-z_]+$ pattern); the per-facet allOf branches above additionally pin polarity/table_path to the declared facet + kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "facet",
+        "polarity"
+      ],
+      "properties": {
+        "facet": {
+          "enum": [
+            "facet:availability",
+            "facet:refund_availability",
+            "facet:exchange_availability",
+            "facet:discount_availability",
+            "facet:access_permission",
+            "facet:approval_requirement",
+            "facet:eligibility",
+            "facet:cost",
+            "facet:duration",
+            "facet:limit"
+          ]
+        },
+        "polarity": {
+          "enum": [
+            "POS",
+            "NEG"
+          ]
+        }
+      }
+    },
+    "facetprojSemantics": {
+      "description": "facet_trigger drawn from facetproj_v1 (a cross-facet projection, e.g. a discount_availability surface projecting onto a different facet). NEVER a legal binding for deny_trigger (see the lexicalSurfaceFeature allOf's explicit then:false branch). SAN-881 PASS 2B.2-FIX: projects_to is CLOSED to the ten pinned facet_families (previously an open ^facet:[a-z_]+$ pattern) -- the same closed vocabulary facetPolaritySemantics.facet already uses.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "polarity",
+        "projects_to"
+      ],
+      "properties": {
+        "polarity": {
+          "enum": [
+            "POS",
+            "NEG"
+          ]
+        },
+        "projects_to": {
+          "enum": [
+            "facet:availability",
+            "facet:refund_availability",
+            "facet:exchange_availability",
+            "facet:discount_availability",
+            "facet:access_permission",
+            "facet:approval_requirement",
+            "facet:eligibility",
+            "facet:cost",
+            "facet:duration",
+            "facet:limit"
+          ]
+        }
+      }
+    },
+    "conditionOperatorSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "polarity",
+        "force"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "IF",
+            "ONLY_IF",
+            "SUBJECT_TO"
+          ]
+        },
+        "polarity": {
+          "enum": [
+            "+",
+            "-"
+          ]
+        },
+        "force": {
+          "enum": [
+            "grant",
+            "restriction"
+          ]
+        }
+      }
+    },
+    "unitSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group",
+        "factor"
+      ],
+      "properties": {
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "factor": {
+          "type": "number"
+        }
+      }
+    },
+    "conceptSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_concept"
+      ],
+      "properties": {
+        "canonical_concept": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "quantifierSemantics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quantifier_class"
+      ],
+      "properties": {
+        "quantifier_class": {
+          "enum": [
+            "universal",
+            "existential",
+            "abstain"
+          ]
+        }
+      }
+    },
+    "definitiveSemantics": {
+      "description": "SAN-881 PASS 2B.2: split from the former shared definitiveHedgeSemantics -- role is CLOSED to the const 'definitive' (the lexicalSurfaceFeature allOf binds kind=='definitive' to this def AND to table_path=='definitive_v1'). SAN-881 PASS 2B.2-FIX: same_overclaim_class_as_table is now const: true (previously type: boolean, so a schema-valid false was accepted even though the field asserts an unconditional fact about the introduced feature, never a caller-supplied choice).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "same_overclaim_class_as_table"
+      ],
+      "properties": {
+        "role": {
+          "const": "definitive"
+        },
+        "same_overclaim_class_as_table": {
+          "const": true
+        }
+      }
+    },
+    "hedgeSemantics": {
+      "description": "SAN-881 PASS 2B.2: split from the former shared definitiveHedgeSemantics -- role is CLOSED to the const 'hedge' (the lexicalSurfaceFeature allOf binds kind=='hedge' to this def AND to table_path=='hedge_v1'). SAN-881 PASS 2B.2-FIX: same_overclaim_class_as_table is now const: true (see definitiveSemantics's own description).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "same_overclaim_class_as_table"
+      ],
+      "properties": {
+        "role": {
+          "const": "hedge"
+        },
+        "same_overclaim_class_as_table": {
+          "const": true
+        }
       }
     },
     "pairRelationFeature": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "table_path", "members"],
+      "required": [
+        "kind",
+        "table_path",
+        "members"
+      ],
       "properties": {
-        "kind": { "enum": ["excl_pair", "complement_pair"] },
-        "table_path": { "enum": ["excl_v1", "complement_v1"] },
+        "kind": {
+          "enum": [
+            "excl_pair",
+            "complement_pair"
+          ]
+        },
+        "table_path": {
+          "enum": [
+            "excl_v1",
+            "complement_v1"
+          ]
+        },
         "members": {
+          "description": "pair members: exactly two token groups",
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
           "items": {
             "type": "array",
             "minItems": 1,
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "excl_pair"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "excl_v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "complement_pair"
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "then": {
+            "properties": {
+              "table_path": {
+                "const": "complement_v1"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

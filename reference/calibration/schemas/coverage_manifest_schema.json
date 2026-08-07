@@ -2,21 +2,320 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sanna.dev/schemas/calibration/coverage_manifest/v1.json",
   "title": "SAN-881 calibration corpus coverage manifest",
-  "description": "Sealed authoring artifact: surface name -> [evidence record, ...]. Surfaces are dynamically enumerated from the pinned tables JSON (one entry per facet family, measure-facet value role, concept family, comparator sequence, EXCL pair, COMPLEMENT pair, condition operator, quantifier class) plus a small explicit inventory for non-table behaviors. An empty evidence array is a documented v1 coverage gap, not a schema violation.",
+  "description": "Sealed authoring artifact: surface name -> [evidence record, ...]. SAN-881 PASS 2B.1: the top-level shape is now a CLOSED, EXPLICIT enumeration of the pre-registered 68-surface registry -- the operator-ratified Coverage Routing Matrix v3 (SAN-881 CORRECTION PASS 2): reference/calibration/validate_design.py SURFACE_REGISTRY, 47 table-derived surfaces (one entry per facet family, concept family, comparator sequence, EXCL pair, COMPLEMENT pair, condition operator, and quantifier class) + 3 SYNTHETIC value_role_v1.{cost,duration,limit} measure-facet value-role surfaces (replacing the retired units_v1.facet:* naming) + 18 nontable behavioral surfaces -- rather than an open `additionalProperties` shape accepting any key. \"properties\" lists all 68 registry surface names, LEXICOGRAPHICALLY SORTED, each valued exactly {\"$ref\": \"#/$defs/evidenceArray\"}; \"required\" carries the IDENTICAL sorted 68-name list; \"additionalProperties\" is false, so a manifest missing a registered surface, carrying an extra undeclared surface, or carrying a RETIRED surface (e.g. the Pass-1 `excl_v1.refundable_nonrefundable` or `units_v1.facet:*` naming) now fails SCHEMA validation directly, not only the runtime `check_coverage_registry_closure` cross-check. validate_design.check_coverage_registry_closure still requires coverage_manifest.json's top-level key set to equal validate_design.SURFACE_REGISTRY's key set EXACTLY -- this schema is the build-time mirror of that same closed registry, kept in sync by a dedicated consistency test (test_calibration.py) asserting the schema's property name set == its own required set == SURFACE_REGISTRY's key set, EXACTLY. Every surface MUST carry genuine, nonempty evidence (evidenceArray minItems 1) -- an empty evidence array is a schema violation, not a documented gap. SAN-881 PASS 2B.1-P PRODUCT-LEVEL COVERAGE: validate_design.py's executable coverage checks now split by surface class. The 50 IN-SCOPE surfaces (the 47 table-derived families + the 3 value_role_v1 surfaces) are validated by a FOUR-CLAUSE product contract, evaluated over an EPHEMERAL, TYPED, validator-local ProductTraceBundle (FieldProductTrace / FrameProductEvent / PartialProductEvent, built by pure read-only replay of the pinned production extraction primitives) plus CAPABILITY_MAP, a CLOSED, reviewed STATIC compatibility declaration of exactly 13 (family, location) -> legal (check_id, field) position-set rows -- CAPABILITY_MAP is a reviewed static routing table, NEVER a dynamically inferred consumption proof. The four clauses per evidence record: (1) POSITION -- (check_id, field) in the surface's SURFACE_REGISTRY allowed_positions, unchanged from Pass-1/2; (2) PRODUCT PRESENT -- the declared field's FieldProductTrace(s) contain the exact normalized product, located family-specifically (facets: normalized Frame.extent.facet; concept/comparators/complement: conjunct-bound condition or requirement location; excl: FrameProductEvent.modifiers; quant: selected token class or, for quant_v1.abstain, the PER_HIT_ABSTAIN partial event; value_role: classify_value_span_text over the exact raw value span, bound to the owning FrameProductEvent's own facet -- SAN-881 PASS 2B.1-P-FIX fix 2 -- so a classified span whose owning frame carries a DIFFERENT measure facet never credits the classifier's facet); (3) NON-PARTIAL -- every FieldProductTrace belonging to the declared field is nonpartial (quant_v1.abstain's PER_HIT_ABSTAIN is the sole documented exception, and SAN-881 PASS 2B.1-P-FIX fix 5 requires ALL of: the selected token in the abstain class, the PER_HIT_ABSTAIN stage, the event's own cause equal to the production UNEXTRACTABLE cause, AND the owning field's aggregate trace itself partial; NO other partial event credits any of the 50 surfaces); (4) CHECK-APPLICABLE -- CAPABILITY_MAP[(family, location)] contains (check_id, field). OWNERSHIP QUALIFIERS additionally apply: every frame-backed product requires an assertive FrameProductEvent owner; a context owner used for ordinary C1/C4 coverage must be authoritative tier_1/tier_2; a C3/context product owner must occur in trusted_obligations' own source_frame_identities; a C3/output condition or requirement claimed as evidence must have a matching EvidenceProductEvent; other C3/output frame routes require at least one successfully extracted trusted obligation; comparator credit requires nonempty parsed_intervals; value_role credit requires nonempty value_intervals plus exact-span classifier success. EXCL_v1/COMPLEMENT_v1 require JOINT evidence, never a one-record rule: EXCL requires TWO DISTINCT assertive frame owners whose FrameProductEvent.modifiers carry the two normalized pair members in a SAME-RELATION modifier object set (excl_candidates may prefilter but cannot itself prove the relation); COMPLEMENT requires each pair member as an exact SINGLETON TermAtom inside a STORED condition/requirement Bool formula (a flattened complement-candidate list alone is insufficient); neither ever concatenates context and output. SAN-881 PASS 2B.1b upgraded the 18 NONTABLE surfaces to product-honest, event-local proof, split into three groups. GROUP A (the seven c2_* surfaces: c2_definitive_hit, c2_negated_definitive, c2_hedge_in_window, c2_hedge_outside_window_or_absent, c2_negated_hedge, c2_window_boundary, c2_interrogative) is bundle-free: it consumes reference.checks.scan_c2_lexical and has_governed_question -- the SAME shared helpers checks.C2 and evaluate.py's own Stage W1 gate consume (extracted so there is no independent calibration-side replica of definitive/hedge/window/negation/interrogative handling) -- over the declared field's own re-tokenized text, a static-lexical scan that never calls evaluate() and never builds a ProductTraceBundle. GROUPS B ({polarity_via_deny_trigger, polarity_via_negator, contraction_expansion}) and C (abstain_interrogative_output and the remaining seven abstention surfaces) ARE ProductTraceBundle-backed, EVENT-LOCAL evidence, sharing ONE Pass-B-wide bundle cache with the 50 in-scope surfaces: Group B reads FrameProductEvent.is_deny / negator_raw (an IDENTITY check, never truthiness, since a contraction-generated negator's own raw text is empty-string) / a genuine tokenizer-verified contraction occurrence, ownership-qualified by the SAME ordinary ownership/nonpartial portion of the four-clause contract (never CAPABILITY_MAP -- no nontable surface is ever routed through CAPABILITY_MAP, which has no nontable rows); Group C requires a mechanism-specific textual detector and a PINNED (PartialStage, cause) PartialProductEvent pair to be found within the SAME FieldProductTrace/source AND sentence (PER_HIT_ABSTAIN mechanisms additionally corroborated within that hit's own reconstructed production structural segment, without extending ProductTrace), and never inherits frame trust qualifiers. The FIVE _contains_* lexical helper functions, _word_present, _field_text, and the ELEVEN Group B/C handler expressions inside _predicate_nontable itself remain BYTE-UNCHANGED (dead in the runtime dispatch path, exactly like the eight dead non-nontable COVERAGE_PREDICATES entries this module already carries) -- only Group A's seven handler expressions were rewritten to call the shared C2 helpers. HONEST ASSURANCE: Runtime validation proves parsed-product presence, ownership and partiality qualifiers, declared-field integrity, and compatibility with a reviewed static routing map. It does not prove internal branch reach, causality, or per-corpus-item execution. Phase B evaluator runs remain the authority for measured behavior. No CheckConsumptionTrace class exists, and none is planned: a genuine internal-branch-consumption-tracing architecture (event vocabulary, locks, phase state, call attribution, runtime monkeypatching of production code, replay of a check's own branch against a real outcome) was proposed and REJECTED -- this pass achieves product-level, not consumption-level, assurance, and that boundary is permanent, not a staging step toward consumption tracing. No trace this validator builds is ever published or persisted; every trace is ephemeral and process-local to one validation run, and never publishes trace data, an evaluator outcome, or a rate. Every record's (check_id, field) is also validated against the registry's own allowed_positions set of explicit (check_id, field) PAIRS (362 total across the registry) -- this replaces the Pass-1 allowed_checks/allowed_fields cartesian sets, which could not describe a forbidden pair whose components are each individually legal elsewhere (e.g. value_role_v1.cost is legal at (C1,output) and at (C3,context) but NOT at (C3,output)). SAN-881 PASS 2B.1b-FIX (bounded correction pass over the 2B.1b delta) corrected four defects surfaced against that upgrade. (1) The six lexical c2_* surfaces now honor checks.C2's OWN row-0 partial gate: a governed-question item_text earns credit ONLY via c2_interrogative, and scan_c2_lexical is never invoked for it -- mirroring production's own short-circuit exactly (evaluate.py passes has_governed_question(out_text) as C2's out_partial, which returns NOT_EVALUATED before the scan ever runs); the (C2, output) contraction route rejects the same way. (2) scan_c2_lexical's window-clipping flags are now derived from the field-clamped raw W_HEDGE bound versus the production-segment-clamped bound, so a comma/semicolon/colon/paren segment boundary that genuinely shortens the window is correctly flagged (not only a because/since boundary token); scan_c2_lexical itself now STREAMS in production via an optional sink callback -- no per-definitive fact record is built at all on the no-sink (production C2) path, closing a proportional memory-allocation regression; calibration supplies its own sink and captures exactly the facts it needs. (3) _nb_hit_segment_text's forward extension across a segment boundary is narrowed to a comma DIRECTLY flanked by NUMBER tokens on both sides (a malformed numeral's own internal comma) -- it no longer absorbs an arbitrary LATER comma/semicolon segment. (4) The abstain_malformed_value/abstain_approx_value/abstain_e15_nested_adjunct_chain/abstain_san894_trigger_in_adjunct/abstain_san895_non_ascii_digits mechanisms are no longer best-effort substring/distinct-token text detectors: each is now a conservative, EXACT production-token predicate (exact APPROX_V1 fold identity; exact NUMBER/PCT100 token counts; production's own pairwise consecutive-adjunct-preposition rule -- REPEATED occurrences of the same preposition included, with the literal \"and <preposition>\" exemption honored; the longest TRIGGER_INDEX match inside the ACTUAL adjunct group, with NO article requirement; and a host-UCD non-ASCII-digit character guard -- ch.isdigit() and not ASCII 0-9 -- never a hand-enumerated Unicode range table). abstain_interrogative_output and abstain_e13_nonterminating_punctuation now credit on their own uniquely-identifying (PartialStage, cause) pair alone, with no further textual corroboration run (each is the SOLE Group C surface pinned to its own pair). abstain_san895_non_ascii_digits now accepts a CLOSED two-pair set -- (TOTAL_SPAN_UNCONSUMED, None) (sentence-level, no hit) and (PER_HIT_ABSTAIN, \"unextractable\") (when the digit is a measure-facet hit's own sole value candidate and rule 8 valency enforcement aborts extraction) -- rather than the single pair the prior pass pinned.",
   "type": "object",
-  "additionalProperties": {
-    "type": "array",
-    "items": { "$ref": "#/$defs/evidenceRecord" }
+  "additionalProperties": false,
+  "properties": {
+    "comparators_v1.above": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.at_least": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.at_most": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.below": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.less_than": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.more_than": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.over": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.under": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.up_to": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "comparators_v1.within": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "complement_v1.active_inactive": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "complement_v1.approved_unapproved": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "complement_v1.eligible_ineligible": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "complement_v1.enabled_disabled": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "complement_v1.verified_unverified": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "concept_v1.approval": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "concept_v1.authorization": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "concept_v1.confirmation": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "concept_v1.registration": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "concept_v1.verification": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.as_long_as.IF.grant": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.depending_on.SUBJECT_TO.restriction": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.except.IF.grant": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.if.IF.grant": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.must_first.SUBJECT_TO.restriction": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.only_if.ONLY_IF.restriction": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.provided_that.IF.grant": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.subject_to.SUBJECT_TO.restriction": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.unless.IF.grant": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "condition_operators_v1.when.IF.grant": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "excl_v1.active_inactive": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "excl_v1.digital_physical": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "excl_v1.internal_external": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "excl_v1.verified_unverified": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:access_permission": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:approval_requirement": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:availability": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:cost": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:discount_availability": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:duration": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:eligibility": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:exchange_availability": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:limit": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "facets_v1.facet:refund_availability": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_approx_value": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_e13_nonterminating_punctuation": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_e15_nested_adjunct_chain": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_interrogative_output": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_malformed_value": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_quant_abstain": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_san894_trigger_in_adjunct": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.abstain_san895_non_ascii_digits": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_definitive_hit": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_hedge_in_window": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_hedge_outside_window_or_absent": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_interrogative": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_negated_definitive": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_negated_hedge": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.c2_window_boundary": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.contraction_expansion": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.polarity_via_deny_trigger": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "nontable.polarity_via_negator": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "quant_v1.abstain": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "quant_v1.existential": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "quant_v1.universal": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "value_role_v1.cost": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "value_role_v1.duration": {
+      "$ref": "#/$defs/evidenceArray"
+    },
+    "value_role_v1.limit": {
+      "$ref": "#/$defs/evidenceArray"
+    }
   },
+  "required": [
+    "comparators_v1.above",
+    "comparators_v1.at_least",
+    "comparators_v1.at_most",
+    "comparators_v1.below",
+    "comparators_v1.less_than",
+    "comparators_v1.more_than",
+    "comparators_v1.over",
+    "comparators_v1.under",
+    "comparators_v1.up_to",
+    "comparators_v1.within",
+    "complement_v1.active_inactive",
+    "complement_v1.approved_unapproved",
+    "complement_v1.eligible_ineligible",
+    "complement_v1.enabled_disabled",
+    "complement_v1.verified_unverified",
+    "concept_v1.approval",
+    "concept_v1.authorization",
+    "concept_v1.confirmation",
+    "concept_v1.registration",
+    "concept_v1.verification",
+    "condition_operators_v1.as_long_as.IF.grant",
+    "condition_operators_v1.depending_on.SUBJECT_TO.restriction",
+    "condition_operators_v1.except.IF.grant",
+    "condition_operators_v1.if.IF.grant",
+    "condition_operators_v1.must_first.SUBJECT_TO.restriction",
+    "condition_operators_v1.only_if.ONLY_IF.restriction",
+    "condition_operators_v1.provided_that.IF.grant",
+    "condition_operators_v1.subject_to.SUBJECT_TO.restriction",
+    "condition_operators_v1.unless.IF.grant",
+    "condition_operators_v1.when.IF.grant",
+    "excl_v1.active_inactive",
+    "excl_v1.digital_physical",
+    "excl_v1.internal_external",
+    "excl_v1.verified_unverified",
+    "facets_v1.facet:access_permission",
+    "facets_v1.facet:approval_requirement",
+    "facets_v1.facet:availability",
+    "facets_v1.facet:cost",
+    "facets_v1.facet:discount_availability",
+    "facets_v1.facet:duration",
+    "facets_v1.facet:eligibility",
+    "facets_v1.facet:exchange_availability",
+    "facets_v1.facet:limit",
+    "facets_v1.facet:refund_availability",
+    "nontable.abstain_approx_value",
+    "nontable.abstain_e13_nonterminating_punctuation",
+    "nontable.abstain_e15_nested_adjunct_chain",
+    "nontable.abstain_interrogative_output",
+    "nontable.abstain_malformed_value",
+    "nontable.abstain_quant_abstain",
+    "nontable.abstain_san894_trigger_in_adjunct",
+    "nontable.abstain_san895_non_ascii_digits",
+    "nontable.c2_definitive_hit",
+    "nontable.c2_hedge_in_window",
+    "nontable.c2_hedge_outside_window_or_absent",
+    "nontable.c2_interrogative",
+    "nontable.c2_negated_definitive",
+    "nontable.c2_negated_hedge",
+    "nontable.c2_window_boundary",
+    "nontable.contraction_expansion",
+    "nontable.polarity_via_deny_trigger",
+    "nontable.polarity_via_negator",
+    "quant_v1.abstain",
+    "quant_v1.existential",
+    "quant_v1.universal",
+    "value_role_v1.cost",
+    "value_role_v1.duration",
+    "value_role_v1.limit"
+  ],
   "$defs": {
+    "evidenceArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidenceRecord"
+      }
+    },
     "evidenceRecord": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["item_id", "check_id", "field"],
+      "required": [
+        "item_id",
+        "check_id",
+        "field"
+      ],
       "properties": {
-        "item_id": { "type": "string", "pattern": "^cal:[0-9]{3}$" },
-        "check_id": { "enum": ["C1", "C2", "C3", "C4"] },
-        "field": { "enum": ["context", "output"] }
+        "item_id": {
+          "type": "string",
+          "pattern": "^cal:[0-9]{3}$"
+        },
+        "check_id": {
+          "enum": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        },
+        "field": {
+          "enum": [
+            "context",
+            "output"
+          ]
+        }
       }
     }
   }
