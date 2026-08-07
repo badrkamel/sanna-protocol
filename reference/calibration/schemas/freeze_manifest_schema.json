@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanna.dev/schemas/calibration/freeze_manifest/v2.json",
+  "title": "SAN-881 calibration FREEZE-MANIFEST (Phase B forward reference)",
+  "description": "Shape of reference/calibration/FREEZE-MANIFEST.json, the artifact measure.py refuses to run without. Produced at the end of the staged-adjudication workflow documented in README.md; NOT produced in Phase A. All *_sha256 fields are raw SHA-256 hex digests over the exact committed bytes of the named artifact. corpus_version is pinned to 2 (SAN-881 Phase-A correction reseal) -- v1 is abandoned.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "corpus_version",
+    "corpus_inputs_sha256",
+    "labels_frozen_sha256",
+    "design_metadata_sha256",
+    "coverage_manifest_sha256",
+    "evaluation_profile_sha256",
+    "algorithm_sha256",
+    "tables_sha256",
+    "adjudication_log_sha256",
+    "labeling_context_hash",
+    "author_commitment_sha256",
+    "reviewer_semantic_commitment_sha256",
+    "reviewer_contract_commitment_sha256",
+    "reveal_verification_ledger_sha256"
+  ],
+  "properties": {
+    "corpus_version": { "const": 2 },
+    "corpus_inputs_sha256": { "$ref": "#/$defs/hex64" },
+    "labels_frozen_sha256": { "$ref": "#/$defs/hex64" },
+    "design_metadata_sha256": { "$ref": "#/$defs/hex64" },
+    "coverage_manifest_sha256": { "$ref": "#/$defs/hex64" },
+    "evaluation_profile_sha256": { "$ref": "#/$defs/hex64" },
+    "algorithm_sha256": {
+      "$ref": "#/$defs/hex64",
+      "const": "49c138595fde5ee517d00d6b41eb815cf1016213a0cb7978ef258560cf5a4c59"
+    },
+    "tables_sha256": {
+      "$ref": "#/$defs/hex64",
+      "const": "0a18dd94bc811bb3166a4f8812e78f2b053a9f8f083b781a21fb0f8371f54ecc"
+    },
+    "adjudication_log_sha256": { "$ref": "#/$defs/hex64" },
+    "labeling_context_hash": {
+      "description": "Must be IDENTICAL across the author envelope and both reviewer envelopes -- see reveal_verification_ledger.json.",
+      "$ref": "#/$defs/hex64"
+    },
+    "author_commitment_sha256": { "$ref": "#/$defs/hex64" },
+    "reviewer_semantic_commitment_sha256": { "$ref": "#/$defs/hex64" },
+    "reviewer_contract_commitment_sha256": { "$ref": "#/$defs/hex64" },
+    "reveal_verification_ledger_sha256": { "$ref": "#/$defs/hex64" }
+  },
+  "$defs": {
+    "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

@@ -1,6 +1,19 @@
-# ALGORITHM v4 (DRAFT 5.6): executable reference semantics for C1-C5 at cv=11 / CHECKS_VERSION 11 -- STANDALONE
+# ALGORITHM v4 (DRAFT 5.7): executable reference semantics for C1-C5 at cv=11 / CHECKS_VERSION 11 -- STANDALONE
 
-> STATUS: DRAFT 5.6 -- ONE narrow erratum, operator-ratified under
+> STATUS: DRAFT 5.7 -- ONE narrow erratum, operator-ratified under
+> SAN-881 routing-matrix v3 (no design reopening): (e16) QUANT_v1
+> SELECTION -- section 3.2's quant(subject_group) previously read "class
+> of the head-position token" while both reference implementations scan
+> the subject span left-to-right and select the FIRST token in any
+> T.quant_v1 class; the live cross-SDK first-match rule is ADOPTED as
+> normative: scan the subject span left-to-right; the first token
+> belonging to any T.quant_v1 class determines the result (universal ->
+> 1; existential -> 2; abstain-class -> frame PARTIAL); no quant-class
+> token -> 0. Normative text inline at section 3.2. (Resolves the
+> spec/code contradiction in favor of shipped, parity-tested behavior;
+> the predicate for quant_v1 coverage surfaces must prove the SELECTED
+> token produced Extent.quant or caused the abstention.)
+> DRAFT 5.6 was: ONE narrow erratum, operator-ratified under
 > SAN-897 (no design reopening): (e15) NESTED_ADJUNCT_v1 -- section 3.2
 > adjunct_modifiers' previously underspecified "nested adjunct inside ->
 > abstain" arm is operationally defined: per role span, for each
@@ -377,9 +390,12 @@ def adjunct_modifiers(span):
     # declared valid. The facet-trigger, NUMBER, and REL_MARKER + content
     # abstentions above remain independent of this rule. is_content_token
     # is the existing 2.6 predicate, unmodified.
-def quant(subject_group) = T.quant_v1 class of the head-position token:
+def quant(subject_group) = scan the subject span LEFT-TO-RIGHT; the
+    # FIRST token belonging to any T.quant_v1 class determines the
+    # result (e16, operator-ratified: adopts the live cross-SDK
+    # first-match rule, superseding draft-5.6 "head-position token"):
     # universal -> 1; existential -> 2; abstain-class -> frame PARTIAL;
-    # absent -> 0
+    # no quant-class token -> 0
 ```
 
 ### 3.3 Conditions (one marker scope = ONE formula; node force + atom flags)
